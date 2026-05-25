@@ -88,6 +88,26 @@ def load_config(config_path: str | Path) -> dict[str, Any]:
         "run": {
             "base_dir": get("RUN_BASE_DIR", "runs"),
         },
+        "strategy": {
+            "template_families": _as_list(
+                get(
+                    "TEMPLATE_FAMILIES",
+                    "time_window_agg,ratio_share,volatility,cross_feature,"
+                    "anomaly_distance,stability_shift",
+                )
+            ),
+            "transform_strategies": _as_list(
+                get(
+                    "TRANSFORM_STRATEGIES",
+                    "raw,log,woe_bin,quantile_bin,missing_indicator,interaction",
+                )
+            ),
+        },
+        "knowledge": {
+            "feature_bank_path": get(
+                "FEATURE_BANK_PATH", "knowledge/feature_bank.json"
+            ),
+        },
         "trace": {
             "enabled": _as_bool(get("TRACE_ENABLED", "true")),
         },

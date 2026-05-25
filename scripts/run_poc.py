@@ -41,6 +41,7 @@ from src.agents.critic import CriticAgent
 from src.core.budget_controller import BudgetController
 from src.core.state_manager import StateManager
 from src.core.orchestrator import Orchestrator
+from src.memory.feature_knowledge_base import FeatureKnowledgeBase
 from src.memory.feature_registry import FeatureRegistry
 from src.memory.trace_recorder import TraceRecorder
 from src.pipeline.cache_manager import CacheManager
@@ -232,9 +233,18 @@ def main():
 
     # State Manager
     directions = config.get("directions", [])
+    strategy_cfg = config.get("strategy", {})
+    template_families = strategy_cfg.get("template_families", [])
+    transform_strategies = strategy_cfg.get("transform_strategies", [])
+    if not template_families:
+        template_families = ["time_window_agg"]
+    if not transform_strategies:
+        transform_strategies = ["raw"]
     state_manager = StateManager(
         directions=directions,
         initial_budget=budget.daily_limit,
+        template_families=template_families,
+        transform_strategies=transform_strategies,
     )
 
     # Cache Manager
@@ -251,7 +261,20 @@ def main():
         storage_path=run_dir / "features" / "feature_registry.json"
     )
 
+    knowledge_path = Path(
+        config.get("knowledge", {}).get(
+            "feature_bank_path", "knowledge/feature_bank.json"
+        )
+    )
+    if not knowledge_path.is_absolute():
+        knowledge_path = PROJECT_ROOT / knowledge_path
+    feature_kb = FeatureKnowledgeBase(storage_path=knowledge_path)
+    feature_kb.load()
+
     print(f"  -> UCB 方向数: {len(directions)}")
+    print(f"  -> 模板族数: {len(template_families)}")
+    print(f"  -> 变换策略数: {len(transform_strategies)}")
+    print(f"  -> 历史优秀因子: {feature_kb.size}")
     print(f"  -> 每日预算: {budget.daily_limit}")
     print(f"  -> 每步生成 K: {config['generator']['k_features_per_step']}")
 
@@ -267,6 +290,7 @@ def main():
         budget_controller=budget,
         cache_manager=cache,
         trace_recorder=trace,
+        feature_knowledge_base=feature_kb,
         max_steps=budget_cfg.get("max_steps", 20),
         k_features_per_step=config["generator"]["k_features_per_step"],
     )
@@ -282,7 +306,10 @@ def main():
     for feat in delta_features:
         registry.register(feat, metadata=detail_by_id.get(feat.feature_id))
     registry.save()
+    added_to_bank = feature_kb.add_many(orch.delta_feature_details, run_id=run_id)
+    feature_kb.save()
     print(f"  -> 已注册 {registry.size} 个特征")
+    print(f"  -> 写入优秀因子知识库 {added_to_bank} 个新特征")
 
     # ─── 打印摘要 ───
     print("\n[6/6] 运行摘要")
@@ -315,6 +342,8 @@ def main():
         "trace_events": str(trace.events_path) if trace else None,
         "trace_lineage": str(trace.lineage_path) if trace else None,
         "feature_registry": str(registry.storage_path),
+        "feature_bank": str(feature_kb.storage_path),
+        "feature_bank_size": feature_kb.size,
     }
     with summary_path.open("w", encoding="utf-8") as f:
         json.dump(summary, f, ensure_ascii=False, indent=2)

@@ -42,6 +42,14 @@ GENERATOR_SYSTEM_PROMPT = """你是一个风控特征挖掘专家。你需要生
 CURRENT_DIRECTION: {direction}
 {direction_context}
 
+## 当前生成策略
+- TEMPLATE_FAMILY: {template_family}
+- TRANSFORM_STRATEGY: {transform_strategy}
+{strategy_context}
+
+## 历史优秀因子
+{feature_memory_context}
+
 ## 历史反馈
 {critic_context}
 
@@ -86,6 +94,9 @@ class GeneratorAgent:
         self,
         direction: str,
         critic_feedback: list[CriticOutput] | None = None,
+        template_family: str = "time_window_agg",
+        transform_strategy: str = "raw",
+        feature_memory: list[dict] | None = None,
         k: int = 3,
     ) -> list[FeatureDSL]:
         """
@@ -114,12 +125,20 @@ class GeneratorAgent:
 
         # 构建方向上下文
         direction_context = self._build_direction_context(direction)
+        strategy_context = self._build_strategy_context(
+            template_family, transform_strategy
+        )
+        feature_memory_context = self._build_feature_memory_context(feature_memory)
 
         # 构建 prompt
         user_prompt = GENERATOR_SYSTEM_PROMPT.format(
             schema=self._schema_str,
             direction=direction,
             direction_context=direction_context,
+            template_family=template_family,
+            transform_strategy=transform_strategy,
+            strategy_context=strategy_context,
+            feature_memory_context=feature_memory_context,
             critic_context=critic_context,
             k=k,
         )
@@ -146,7 +165,9 @@ class GeneratorAgent:
             features_raw = result.get("features", [])
             if not features_raw:
                 logger.warning("LLM 返回空 features，使用 fallback")
-                return self._deterministic_fallback(direction, k)
+                return self._deterministic_fallback(
+                    direction, k, template_family, transform_strategy
+                )
 
             dsls = []
             for fdict in features_raw[:k]:
@@ -166,13 +187,17 @@ class GeneratorAgent:
 
             if not dsls:
                 logger.warning("所有生成特征校验失败，使用 fallback")
-                return self._deterministic_fallback(direction, k)
+                return self._deterministic_fallback(
+                    direction, k, template_family, transform_strategy
+                )
 
             return dsls
 
         except Exception as e:
             logger.error(f"Generator 异常: {e}，使用 fallback")
-            return self._deterministic_fallback(direction, k)
+            return self._deterministic_fallback(
+                direction, k, template_family, transform_strategy
+            )
 
     def _build_direction_context(self, direction: str) -> str:
         """构建方向上下文信息。"""
@@ -184,6 +209,41 @@ class GeneratorAgent:
             "network_relation": "聚焦网络关系特征，如表: social_graph, transfer_network。常用字段: src_user, dst_user, relation_type, weight",
         }
         return contexts.get(direction, f"方向: {direction}，自行探索相关表和字段。")
+
+    def _build_strategy_context(
+        self, template_family: str, transform_strategy: str
+    ) -> str:
+        template_desc = {
+            "time_window_agg": "围绕时间窗口做 COUNT/SUM/AVG/MAX 等聚合。",
+            "ratio_share": "构造占比、比率、相对强度类特征。",
+            "volatility": "构造波动、稳定性、离散程度类特征。",
+            "cross_feature": "构造两个业务字段的交叉或归一化组合。",
+            "anomaly_distance": "构造偏离常态、距离、异常程度特征。",
+            "stability_shift": "构造跨窗口变化、趋势、漂移类特征。",
+        }.get(template_family, "自适应选择合适模板族。")
+        transform_desc = {
+            "raw": "保留原始数值或简单聚合结果。",
+            "log": "对长尾数值做 LOG 变换。",
+            "woe_bin": "优先考虑 WOE 或分箱表达。",
+            "quantile_bin": "按分位数分箱提高鲁棒性。",
+            "missing_indicator": "显式利用缺失模式或补充缺失指示。",
+            "interaction": "强调交叉、比例或组合变换。",
+        }.get(transform_strategy, "自适应选择变换策略。")
+        return f"{template_desc}\n{transform_desc}"
+
+    def _build_feature_memory_context(self, feature_memory: list[dict] | None) -> str:
+        if not feature_memory:
+            return "暂无可复用优秀因子。"
+        parts = []
+        for item in feature_memory[:5]:
+            metrics = item.get("metrics", {})
+            parts.append(
+                "- "
+                f"{item.get('feature_id')}: {item.get('business_logic')} | "
+                f"IV={metrics.get('IV', 0):.4f}, KS={metrics.get('KS', 0):.4f}, "
+                f"策略={item.get('template_family', '-')}/{item.get('transform_strategy', '-')}"
+            )
+        return "\n".join(parts)
 
     def _normalize_feature_id(
         self,
@@ -215,7 +275,13 @@ class GeneratorAgent:
         readable = re.sub(r"_+", "_", readable).strip("_")
         return readable
 
-    def _deterministic_fallback(self, direction: str, k: int = 3) -> list[FeatureDSL]:
+    def _deterministic_fallback(
+        self,
+        direction: str,
+        k: int = 3,
+        template_family: str = "time_window_agg",
+        transform_strategy: str = "raw",
+    ) -> list[FeatureDSL]:
         """
         确定性 fallback：不依赖 LLM 也能生成有效特征。
         基于规则模板生成。
@@ -270,8 +336,12 @@ class GeneratorAgent:
         table = tables.get(direction, "unknown_table")
         dsls = []
 
-        for i in range(min(k, len(templates))):
-            t = templates[i]
+        selected_templates = self._select_templates_for_strategy(
+            templates, template_family, transform_strategy
+        )
+
+        for i in range(min(k, len(selected_templates))):
+            t = selected_templates[i]
             feat_id = self._normalize_feature_id(
                 raw_id=None,
                 direction=direction,
@@ -279,7 +349,9 @@ class GeneratorAgent:
                     "source_table": table,
                     "time_window": "7d",
                     "aggregation": t["agg"],
-                    "transformation": t["trans"],
+                    "transformation": self._transformation_for_strategy(
+                        transform_strategy, t["trans"]
+                    ),
                 },
                 index=i,
             )
@@ -291,7 +363,9 @@ class GeneratorAgent:
                     "time_window": "7d",
                     "filter": "status = 'success' AND amount > 0",
                     "aggregation": t["agg"],
-                    "transformation": t["trans"],
+                    "transformation": self._transformation_for_strategy(
+                        transform_strategy, t["trans"]
+                    ),
                 },
                 business_logic=t["biz"],
                 compliance_tags=["PII_FREE", "EXPLAINABLE"],
@@ -299,3 +373,37 @@ class GeneratorAgent:
             dsls.append(dsl)
 
         return dsls[:k]
+
+    def _select_templates_for_strategy(
+        self,
+        templates: list[dict],
+        template_family: str,
+        transform_strategy: str,
+    ) -> list[dict]:
+        if template_family == "ratio_share":
+            preferred = ["RATIO", "COUNT", "SUM"]
+        elif template_family == "volatility":
+            preferred = ["STDDEV", "MAX", "AVG"]
+        elif template_family == "cross_feature":
+            preferred = ["RATIO", "AVG", "SUM"]
+        elif template_family == "anomaly_distance":
+            preferred = ["MAX", "STDDEV", "COUNT"]
+        elif template_family == "stability_shift":
+            preferred = ["AVG", "STDDEV", "MAX"]
+        else:
+            preferred = ["COUNT", "SUM", "AVG"]
+        ordered = [t for agg in preferred for t in templates if t["agg"] == agg]
+        return ordered or templates
+
+    def _transformation_for_strategy(
+        self, transform_strategy: str, fallback: str
+    ) -> str:
+        mapping = {
+            "raw": "RAW",
+            "log": "LOG",
+            "woe_bin": "WOE",
+            "quantile_bin": "QUANTILE_BIN",
+            "missing_indicator": "BIN",
+            "interaction": "MINMAX",
+        }
+        return mapping.get(transform_strategy, fallback)

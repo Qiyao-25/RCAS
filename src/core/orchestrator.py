@@ -24,6 +24,7 @@ from src.agents.generator import GeneratorAgent
 from src.agents.critic import CriticAgent
 from src.core.budget_controller import BudgetController
 from src.core.state_manager import StateManager
+from src.memory.feature_knowledge_base import FeatureKnowledgeBase
 from src.memory.trace_recorder import TraceRecorder
 from src.pipeline.cache_manager import CacheManager
 from src.pipeline.dsl_parser import DSLParser
@@ -50,6 +51,7 @@ class Orchestrator:
         budget_controller: BudgetController,
         cache_manager: CacheManager | None = None,
         trace_recorder: TraceRecorder | None = None,
+        feature_knowledge_base: FeatureKnowledgeBase | None = None,
         max_steps: int = 20,
         k_features_per_step: int = 3,
     ):
@@ -62,6 +64,7 @@ class Orchestrator:
         self.budget = budget_controller
         self.cache = cache_manager or CacheManager()
         self.trace = trace_recorder
+        self.feature_kb = feature_knowledge_base
         self.max_steps = max_steps
         self.k = k_features_per_step
 
@@ -93,6 +96,12 @@ class Orchestrator:
                     "directions": [
                         d.direction for d in self.state_manager.get_directions()
                     ],
+                    "template_families": [
+                        t.direction for t in self.state_manager.get_templates()
+                    ],
+                    "transform_strategies": [
+                        t.direction for t in self.state_manager.get_transforms()
+                    ],
                 }
             )
 
@@ -104,6 +113,12 @@ class Orchestrator:
             # ─── 1. UCB 选择方向 ───
             directions = self.state_manager.get_directions()
             selected_direction, ucb_value = self.ucb.select(directions, step + 1)
+            selected_template, template_ucb = self.ucb.select(
+                self.state_manager.get_templates(), step + 1
+            )
+            selected_transform, transform_ucb = self.ucb.select(
+                self.state_manager.get_transforms(), step + 1
+            )
             if self.trace:
                 self.trace.record_step_selected(
                     step=step + 1,
@@ -115,7 +130,11 @@ class Orchestrator:
             step_log = {
                 "step": step + 1,
                 "direction": selected_direction,
+                "template_family": selected_template,
+                "transform_strategy": selected_transform,
                 "ucb_value": ucb_value if ucb_value != float("inf") else "inf",
+                "template_ucb": template_ucb if template_ucb != float("inf") else "inf",
+                "transform_ucb": transform_ucb if transform_ucb != float("inf") else "inf",
                 "generated_features": [],
                 "eval_results": [],
                 "critic_outputs": [],
@@ -129,10 +148,22 @@ class Orchestrator:
                 break
             self.budget.consume(gen_cost)
             step_log["budget_consumed"] += gen_cost
+            feature_memory = (
+                self.feature_kb.top_features(
+                    direction=selected_direction,
+                    template_family=selected_template,
+                    limit=5,
+                )
+                if self.feature_kb
+                else []
+            )
 
             dsls = self.generator.generate(
                 direction=selected_direction,
                 critic_feedback=self.critic_history if self.critic_history else None,
+                template_family=selected_template,
+                transform_strategy=selected_transform,
+                feature_memory=feature_memory,
                 k=self.k,
             )
             if self.trace:
@@ -141,12 +172,17 @@ class Orchestrator:
                     direction=selected_direction,
                     dsls=dsls,
                     critic_context=self.critic_history,
+                    template_family=selected_template,
+                    transform_strategy=selected_transform,
+                    feature_memory=feature_memory,
                 )
             step_log["generated_features"] = [
                 {
                     "feature_id": dsl.feature_id,
                     "business_logic": dsl.business_logic,
                     "definition": dsl.definition,
+                    "template_family": selected_template,
+                    "transform_strategy": selected_transform,
                 }
                 for dsl in dsls
             ]
@@ -230,8 +266,10 @@ class Orchestrator:
             if step_log["critic_outputs"]:
                 failure_axis = step_log["critic_outputs"][0]["axis"]
 
-            self.state_manager.update(
+            self.state_manager.update_strategy(
                 direction=selected_direction,
+                template_family=selected_template,
+                transform_strategy=selected_transform,
                 results=results,
                 failure_axis=failure_axis,
             )
@@ -245,6 +283,8 @@ class Orchestrator:
                         {
                             "feature_id": dsl.feature_id,
                             "direction": dsl.direction,
+                            "template_family": selected_template,
+                            "transform_strategy": selected_transform,
                             "business_logic": dsl.business_logic,
                             "definition": dsl.definition,
                             "resolved_column": self.evaluator.resolved_column_for(
@@ -302,6 +342,10 @@ class Orchestrator:
         for log in self.run_log:
             print(f"\n--- 步骤 {log['step']} ---")
             print(f"  方向: {log['direction']} (UCB={log['ucb_value']})")
+            print(
+                f"  策略: {log['template_family']} / {log['transform_strategy']} "
+                f"(UCB={log['template_ucb']}, {log['transform_ucb']})"
+            )
             print("  生成特征:")
             for gf in log["generated_features"]:
                 print(f"    - {gf['feature_id']}: {gf['business_logic']}")

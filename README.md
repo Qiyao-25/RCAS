@@ -48,6 +48,9 @@ BUDGET_MAX_STEPS=20
 GENERATOR_K_FEATURES_PER_STEP=3
 
 DIRECTIONS=user_device_risk,transaction_pattern,geolocation_anomaly,account_behavior,network_relation
+TEMPLATE_FAMILIES=time_window_agg,ratio_share,volatility,cross_feature,anomaly_distance,stability_shift
+TRANSFORM_STRATEGIES=raw,log,woe_bin,quantile_bin,missing_indicator,interaction
+FEATURE_BANK_PATH=knowledge/feature_bank.json
 
 TRACE_ENABLED=true
 RUN_BASE_DIR=runs
@@ -59,13 +62,14 @@ RUN_BASE_DIR=runs
 
 ```text
 Orchestrator
-  ├─ UCBController        # 根据方向收益做探索/利用选择
-  ├─ GeneratorAgent       # 生成 FeatureDSL
+  ├─ UCBController        # 分别选择业务方向、模板族、变换策略
+  ├─ GeneratorAgent       # 基于策略三元组和历史优秀因子生成 FeatureDSL
   ├─ DSLParser/Validator  # 结构、方向、时间窗口、合规校验
   ├─ Evaluator            # 计算 IV/KS/PSI/missing_rate
   ├─ CriticAgent          # 对低效特征给出修正建议
   ├─ BudgetController     # 控制 Generator/Critic 调用预算
-  └─ FeatureRegistry      # 保存有效特征
+  ├─ FeatureRegistry      # 保存本次运行有效特征
+  └─ FeatureKnowledgeBase # 跨运行复用优秀因子
 ```
 
 ## 五个方向是否足够
@@ -163,6 +167,28 @@ reward =
 | `misc_profile` | 未归类列 | 只做探索兜底，收益应打折 |
 
 当前代码已支持通过 `DIRECTIONS` 环境变量调整方向列表；Validator 会用运行配置覆盖 `dsl_schema.json` 中的方向枚举。
+
+当前实现已经把探索空间升级为三层策略：
+
+```text
+domain = DIRECTIONS
+template_family = TEMPLATE_FAMILIES
+transform_strategy = TRANSFORM_STRATEGIES
+```
+
+每一步会分别用 UCB 选择 `domain/template_family/transform_strategy`，实际生成时把三元组传给 Generator。收益更新也会同时回写三层统计，避免只有“方向”一个粗粒度奖励信号。
+
+## 优秀因子复用
+
+每次运行结束后，高质量特征会写入跨运行知识库：
+
+```text
+knowledge/feature_bank.json
+```
+
+下一次运行启动时会自动加载该文件，并按当前方向和模板族检索历史优秀因子，注入 Generator prompt。这样新一轮挖掘可以复用过去已经验证有效的业务含义、窗口、聚合和变换方式，而不是每次从零开始。
+
+`knowledge/feature_bank.json` 是本地运行资产，默认不会提交到 Git；仓库只保留 `knowledge/.gitkeep`。
 
 ## 可追溯与可解释
 

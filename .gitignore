@@ -20,6 +20,7 @@ env/
 # Logs and run artifacts
 logs/
 runs/
+knowledge/*.json
 *.log
 
 # Generated or local data
@@ -33,6 +34,7 @@ data/
 !configs/
 !configs/*.env
 !configs/*.json
+!knowledge/.gitkeep
 
 # OS/editor files
 .DS_Store

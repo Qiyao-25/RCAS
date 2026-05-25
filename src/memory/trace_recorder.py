@@ -56,6 +56,9 @@ class TraceRecorder:
         direction: str,
         dsls: list[FeatureDSL],
         critic_context: list[CriticOutput],
+        template_family: str | None = None,
+        transform_strategy: str | None = None,
+        feature_memory: list[dict[str, Any]] | None = None,
     ) -> None:
         feedback_summary = [
             {
@@ -74,10 +77,13 @@ class TraceRecorder:
                 "step": step,
                 "direction": direction,
                 "rank": rank,
+                "template_family": template_family,
+                "transform_strategy": transform_strategy,
                 "feature": dsl.model_dump(),
                 "business_logic": dsl.business_logic,
                 "generation_reason": reason,
                 "critic_context_used": feedback_summary,
+                "feature_memory_used": feature_memory or [],
             }
             self._write_event("feature_generated", record)
             self._lineage[dsl.feature_id] = {
@@ -88,6 +94,9 @@ class TraceRecorder:
                 "business_logic": dsl.business_logic,
                 "generation_reason": reason,
                 "critic_context_used": feedback_summary,
+                "template_family": template_family,
+                "transform_strategy": transform_strategy,
+                "feature_memory_used": feature_memory or [],
                 "validation": None,
                 "evaluation": None,
                 "critic": [],

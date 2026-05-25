@@ -23,7 +23,13 @@ class StateManager:
     维护全局 SystemState，每次迭代后更新各方向的 mu_k, n_k, failure_patterns。
     """
 
-    def __init__(self, directions: list[str], initial_budget: int = 50):
+    def __init__(
+        self,
+        directions: list[str],
+        initial_budget: int = 50,
+        template_families: list[str] | None = None,
+        transform_strategies: list[str] | None = None,
+    ):
         """
         Args:
             directions: 初始方向列表
@@ -43,10 +49,24 @@ class StateManager:
                 for d in directions
             ],
         )
+        self.template_stats = [
+            DirectionStats(direction=t) for t in (template_families or [])
+        ]
+        self.transform_stats = [
+            DirectionStats(direction=t) for t in (transform_strategies or [])
+        ]
 
     def get_directions(self) -> list[DirectionStats]:
         """获取当前方向统计列表。"""
         return self.state.directions
+
+    def get_templates(self) -> list[DirectionStats]:
+        """获取模板族统计列表。"""
+        return self.template_stats
+
+    def get_transforms(self) -> list[DirectionStats]:
+        """获取变换策略统计列表。"""
+        return self.transform_stats
 
     def get_state(self) -> SystemState:
         """获取当前系统状态。"""
@@ -113,6 +133,59 @@ class StateManager:
             f"n_k={ds.n_k}, mu_k={ds.mu_k:.4f}, "
             f"success={success_count}/{valid_count}"
         )
+
+    def update_strategy(
+        self,
+        direction: str,
+        template_family: str,
+        transform_strategy: str,
+        results: list[EvalResult],
+        failure_axis: str | None = None,
+    ) -> None:
+        """Update rewards for all selected strategy dimensions."""
+        reward, count = self._reward(results)
+        self._update_arm(self.state.directions, direction, reward, count)
+        self._update_arm(self.template_stats, template_family, reward, count)
+        self._update_arm(self.transform_stats, transform_strategy, reward, count)
+
+        if failure_axis:
+            self.state.failure_patterns[failure_axis] = (
+                self.state.failure_patterns.get(failure_axis, 0) + 1
+            )
+
+        for r in results:
+            if r.feature_id not in self.state.explored_features:
+                self.state.explored_features.append(r.feature_id)
+
+    def _reward(self, results: list[EvalResult]) -> tuple[float, int]:
+        count = len(results)
+        if count == 0:
+            return 0.0, 0
+        success_count = sum(1 for r in results if r.status == "success")
+        metric_gain = sum(min(r.IV, 1.0) + min(r.KS, 1.0) for r in results) / count
+        reward = 0.7 * (success_count / count) + 0.3 * (metric_gain / 2)
+        return reward, count
+
+    def _update_arm(
+        self,
+        arms: list[DirectionStats],
+        name: str,
+        reward: float,
+        count: int,
+    ) -> None:
+        arm = next((item for item in arms if item.direction == name), None)
+        if arm is None:
+            return
+        count = max(count, 1)
+        arm.n_k += count
+        if arm.n_k == count:
+            arm.mu_k = reward
+        else:
+            alpha = 0.3
+            arm.mu_k = alpha * reward + (1 - alpha) * arm.mu_k
+        if arm.n_k > 1:
+            arm.sigma_k = max(0.0, arm.sigma_k * 0.9 + abs(reward - arm.mu_k) * 0.1)
+        arm.last_update = self.state.step
 
     def step_forward(self, budget_consumed: int = 0) -> None:
         """进入下一步，更新 step 和 budget。"""
