@@ -86,6 +86,14 @@ knowledge/feature_bank.json
 
 `knowledge/feature_bank.json` 是本地运行资产，默认不提交到 Git。
 
+长期知识库默认只接收生产口径结果：
+
+```env
+FEATURE_BANK_WRITE_POLICY=production_only
+```
+
+也就是说，只有 `LLM_MODE=api` 且 `DATA_SOURCE=home_credit` 的运行会写入长期知识库。`--mode mock` 或 `--data mock` 只会生成本次 run 目录下的运行产物，不会污染跨运行 memory。
+
 知识库使用有界记忆策略：
 
 - `FEATURE_BANK_MAX_FEATURES=200`：最多保留 200 个优秀因子。
@@ -130,6 +138,7 @@ DATA_MAX_ROWS=80000
 EVAL_SAMPLE_ROWS=50000
 
 FEATURE_BANK_PATH=knowledge/feature_bank.json
+FEATURE_BANK_WRITE_POLICY=production_only
 FEATURE_BANK_MAX_FEATURES=200
 FEATURE_BANK_MAX_PER_DIRECTION=40
 FEATURE_BANK_MAX_PER_STRATEGY=20

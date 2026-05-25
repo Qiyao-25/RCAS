@@ -124,6 +124,19 @@ def _load_mock_data(config: dict) -> tuple:
     return df, None
 
 
+def should_write_feature_memory(config: dict) -> bool:
+    """Return whether this run may update cross-run feature memory."""
+    policy = config.get("knowledge", {}).get("write_policy", "production_only")
+    mode = config.get("llm", {}).get("mode")
+    source = config.get("data", {}).get("source")
+
+    if policy == "always":
+        return True
+    if policy == "never":
+        return False
+    return mode == "api" and source == "home_credit"
+
+
 def main():
     """主入口。"""
     parser = argparse.ArgumentParser(description="预算约束下的序贯特征挖掘 POC")
@@ -278,12 +291,18 @@ def main():
         max_per_direction=config.get("knowledge", {}).get("max_per_direction", 40),
         max_per_strategy=config.get("knowledge", {}).get("max_per_strategy", 20),
     )
-    feature_kb.load()
+    knowledge_write_enabled = should_write_feature_memory(config)
+    if knowledge_write_enabled:
+        feature_kb.load()
 
     print(f"  -> UCB 方向数: {len(directions)}")
     print(f"  -> 模板族数: {len(template_families)}")
     print(f"  -> 变换策略数: {len(transform_strategies)}")
     print(f"  -> 历史优秀因子: {feature_kb.size}")
+    print(
+        "  -> 长期知识库写入: "
+        f"{'enabled' if knowledge_write_enabled else 'disabled'}"
+    )
     print(f"  -> 每日预算: {budget.daily_limit}")
     print(f"  -> 每步生成 K: {config['generator']['k_features_per_step']}")
 
@@ -315,10 +334,15 @@ def main():
     for feat in delta_features:
         registry.register(feat, metadata=detail_by_id.get(feat.feature_id))
     registry.save()
-    added_to_bank = feature_kb.add_many(orch.delta_feature_details, run_id=run_id)
-    feature_kb.save()
+    added_to_bank = 0
+    if knowledge_write_enabled:
+        added_to_bank = feature_kb.add_many(orch.delta_feature_details, run_id=run_id)
+        feature_kb.save()
     print(f"  -> 已注册 {registry.size} 个特征")
-    print(f"  -> 写入优秀因子知识库 {added_to_bank} 个新特征")
+    if knowledge_write_enabled:
+        print(f"  -> 写入优秀因子知识库 {added_to_bank} 个新特征")
+    else:
+        print("  -> 当前运行未写入长期优秀因子知识库")
 
     # ─── 打印摘要 ───
     print("\n[6/6] 运行摘要")
@@ -360,6 +384,7 @@ def main():
         "feature_registry": str(registry.storage_path),
         "feature_bank": str(feature_kb.storage_path),
         "feature_bank_size": feature_kb.size,
+        "feature_bank_write_enabled": knowledge_write_enabled,
     }
     with summary_path.open("w", encoding="utf-8") as f:
         json.dump(summary, f, ensure_ascii=False, indent=2)

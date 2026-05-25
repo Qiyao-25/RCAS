@@ -116,6 +116,7 @@ def load_config(config_path: str | Path) -> dict[str, Any]:
             "feature_bank_path": get(
                 "FEATURE_BANK_PATH", "knowledge/feature_bank.json"
             ),
+            "write_policy": get("FEATURE_BANK_WRITE_POLICY", "production_only"),
             "max_features": _as_int(get("FEATURE_BANK_MAX_FEATURES", "200")),
             "max_per_direction": _as_int(
                 get("FEATURE_BANK_MAX_PER_DIRECTION", "40")
