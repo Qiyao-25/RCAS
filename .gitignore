@@ -1,0 +1,46 @@
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local secrets and machine-specific env files
+.env
+.env.*
+!.env.example
+*.local
+
+# Logs and run artifacts
+logs/
+runs/
+*.log
+
+# Generated or local data
+data/
+*.csv
+*.parquet
+*.pkl
+*.joblib
+
+# Keep docs/config schemas, but do not track local data outputs
+!configs/
+!configs/*.env
+!configs/*.json
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Packaging/build outputs
+build/
+dist/
+*.egg-info/

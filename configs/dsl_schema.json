@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FeatureDSL",
+  "description": "特征挖掘 DSL Schema，约束生成器输出的特征定义结构",
+  "type": "object",
+  "required": ["feature_id", "direction", "definition", "business_logic", "compliance_tags"],
+  "properties": {
+    "feature_id": {
+      "type": "string",
+      "pattern": "^FEAT_[A-Z0-9_]+$",
+      "description": "唯一特征标识符"
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "user_device_risk",
+        "transaction_pattern",
+        "geolocation_anomaly",
+        "account_behavior",
+        "network_relation"
+      ],
+      "description": "特征挖掘方向"
+    },
+    "definition": {
+      "type": "object",
+      "required": ["source_table", "time_window", "filter", "aggregation", "transformation"],
+      "properties": {
+        "source_table": {
+          "type": "string",
+          "description": "数据源表名"
+        },
+        "time_window": {
+          "type": "string",
+          "pattern": "^\\d+[dhm]$",
+          "description": "时间窗口，如 7d, 24h, 30m"
+        },
+        "filter": {
+          "type": "string",
+          "description": "过滤条件，SQL WHERE 子句风格"
+        },
+        "aggregation": {
+          "type": "string",
+          "enum": ["COUNT", "SUM", "AVG", "MAX", "MIN", "STDDEV", "COUNT_DISTINCT", "RATIO", "FREQUENCY"],
+          "description": "聚合函数"
+        },
+        "transformation": {
+          "type": "string",
+          "enum": ["RAW", "LOG", "WOE", "BIN", "STANDARDIZE", "MINMAX", "QUANTILE_BIN"],
+          "description": "变换方法"
+        }
+      }
+    },
+    "business_logic": {
+      "type": "string",
+      "minLength": 1,
+      "description": "业务含义说明"
+    },
+    "compliance_tags": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1,
+      "description": "合规标签列表"
+    }
+  }
+}
