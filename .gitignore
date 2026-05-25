@@ -19,7 +19,6 @@ env/
 
 # Logs and run artifacts
 logs/
-runs/
 knowledge/*.json
 *.log
 
@@ -36,6 +35,8 @@ knowledge/*.json
 !data/
 !data/*.csv
 !knowledge/.gitkeep
+!runs/
+!runs/**
 
 # OS/editor files
 .DS_Store

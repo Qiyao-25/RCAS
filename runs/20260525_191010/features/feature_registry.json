@@ -1,0 +1,733 @@
+{
+  "registry": {
+    "FEAT_TRANSACTION_PATTERN_MERCHANT_RATIO_30D_002": {
+      "feature_id": "FEAT_TRANSACTION_PATTERN_MERCHANT_RATIO_30D_002",
+      "direction": "transaction_pattern",
+      "definition": {
+        "source_table": "transaction_detail",
+        "time_window": "30d",
+        "filter": "merchant_id LIKE 'high_risk%'",
+        "aggregation": "RATIO",
+        "transformation": "LOG"
+      },
+      "business_logic": "过去30天高风险商户交易笔数占比，经对数变换以平滑分布",
+      "compliance_tags": [
+        "PII_FREE",
+        "EXPLAINABLE"
+      ],
+      "metadata": {
+        "feature_id": "FEAT_TRANSACTION_PATTERN_MERCHANT_RATIO_30D_002",
+        "direction": "transaction_pattern",
+        "template_family": "ratio_share",
+        "transform_strategy": "log",
+        "business_logic": "过去30天高风险商户交易笔数占比，经对数变换以平滑分布",
+        "definition": {
+          "source_table": "transaction_detail",
+          "time_window": "30d",
+          "filter": "merchant_id LIKE 'high_risk%'",
+          "aggregation": "RATIO",
+          "transformation": "LOG"
+        },
+        "resolved_column": "AMT_GOODS_PRICE",
+        "metrics": {
+          "IV": 0.062871,
+          "KS": 0.074669,
+          "KS_gain": 0.0,
+          "PSI": 0.189703,
+          "missing_rate": 0.0,
+          "status": "success",
+          "reason": null
+        },
+        "effectiveness": "通过阈值筛选；IV=0.0629 表示区分度，KS=0.0747 表示正负样本分离度，PSI=0.1897 表示稳定性风险，缺失率=0.00%。"
+      }
+    },
+    "FEAT_GEO_ANOM_GPS_STDDEV_1H_001": {
+      "feature_id": "FEAT_GEO_ANOM_GPS_STDDEV_1H_001",
+      "direction": "geolocation_anomaly",
+      "definition": {
+        "source_table": "gps_track",
+        "time_window": "1h",
+        "filter": "latitude IS NOT NULL AND longitude IS NOT NULL AND latitude != 0 AND longitude != 0",
+        "aggregation": "STDDEV",
+        "transformation": "WOE"
+      },
+      "business_logic": "用户在过去1小时内GPS坐标的标准差，反映位置离散程度，异常高可能为位置抖动或虚假GPS",
+      "compliance_tags": [
+        "PII_FREE",
+        "EXPLAINABLE"
+      ],
+      "metadata": {
+        "feature_id": "FEAT_GEO_ANOM_GPS_STDDEV_1H_001",
+        "direction": "geolocation_anomaly",
+        "template_family": "volatility",
+        "transform_strategy": "woe_bin",
+        "business_logic": "用户在过去1小时内GPS坐标的标准差，反映位置离散程度，异常高可能为位置抖动或虚假GPS",
+        "definition": {
+          "source_table": "gps_track",
+          "time_window": "1h",
+          "filter": "latitude IS NOT NULL AND longitude IS NOT NULL AND latitude != 0 AND longitude != 0",
+          "aggregation": "STDDEV",
+          "transformation": "WOE"
+        },
+        "resolved_column": "REGION_RATING_CLIENT_W_CITY",
+        "metrics": {
+          "IV": 0.058618,
+          "KS": 0.062763,
+          "KS_gain": 0.0,
+          "PSI": 0.730936,
+          "missing_rate": 0.0,
+          "status": "success",
+          "reason": null
+        },
+        "effectiveness": "通过阈值筛选；IV=0.0586 表示区分度，KS=0.0628 表示正负样本分离度，PSI=0.7309 表示稳定性风险，缺失率=0.00%。"
+      }
+    },
+    "FEAT_GEO_ANOM_IP_COUNT_6H_002": {
+      "feature_id": "FEAT_GEO_ANOM_IP_COUNT_6H_002",
+      "direction": "geolocation_anomaly",
+      "definition": {
+        "source_table": "ip_location_log",
+        "time_window": "6h",
+        "filter": "ip IS NOT NULL",
+        "aggregation": "COUNT_DISTINCT",
+        "transformation": "WOE"
+      },
+      "business_logic": "用户在过去6小时内使用的不同IP地址数量，数量异常可能为代理或VPN切换",
+      "compliance_tags": [
+        "PII_FREE",
+        "EXPLAINABLE"
+      ],
+      "metadata": {
+        "feature_id": "FEAT_GEO_ANOM_IP_COUNT_6H_002",
+        "direction": "geolocation_anomaly",
+        "template_family": "volatility",
+        "transform_strategy": "woe_bin",
+        "business_logic": "用户在过去6小时内使用的不同IP地址数量，数量异常可能为代理或VPN切换",
+        "definition": {
+          "source_table": "ip_location_log",
+          "time_window": "6h",
+          "filter": "ip IS NOT NULL",
+          "aggregation": "COUNT_DISTINCT",
+          "transformation": "WOE"
+        },
+        "resolved_column": "REGION_RATING_CLIENT",
+        "metrics": {
+          "IV": 0.059621,
+          "KS": 0.065804,
+          "KS_gain": 0.0,
+          "PSI": 0.714905,
+          "missing_rate": 0.0,
+          "status": "success",
+          "reason": null
+        },
+        "effectiveness": "通过阈值筛选；IV=0.0596 表示区分度，KS=0.0658 表示正负样本分离度，PSI=0.7149 表示稳定性风险，缺失率=0.00%。"
+      }
+    },
+    "FEAT_GEO_ANOM_CITY_CHANGE_24H_003": {
+      "feature_id": "FEAT_GEO_ANOM_CITY_CHANGE_24H_003",
+      "direction": "geolocation_anomaly",
+      "definition": {
+        "source_table": "ip_location_log",
+        "time_window": "24h",
+        "filter": "city IS NOT NULL",
+        "aggregation": "COUNT_DISTINCT",
+        "transformation": "BIN"
+      },
+      "business_logic": "用户在过去24小时内途径的不同城市数量，过多城市切换可能为异常出行模式",
+      "compliance_tags": [
+        "PII_FREE",
+        "EXPLAINABLE"
+      ],
+      "metadata": {
+        "feature_id": "FEAT_GEO_ANOM_CITY_CHANGE_24H_003",
+        "direction": "geolocation_anomaly",
+        "template_family": "volatility",
+        "transform_strategy": "woe_bin",
+        "business_logic": "用户在过去24小时内途径的不同城市数量，过多城市切换可能为异常出行模式",
+        "definition": {
+          "source_table": "ip_location_log",
+          "time_window": "24h",
+          "filter": "city IS NOT NULL",
+          "aggregation": "COUNT_DISTINCT",
+          "transformation": "BIN"
+        },
+        "resolved_column": "REG_CITY_NOT_WORK_CITY",
+        "metrics": {
+          "IV": 0.030983,
+          "KS": 0.077368,
+          "KS_gain": 0.0,
+          "PSI": 0.322271,
+          "missing_rate": 0.0,
+          "status": "success",
+          "reason": null
+        },
+        "effectiveness": "通过阈值筛选；IV=0.0310 表示区分度，KS=0.0774 表示正负样本分离度，PSI=0.3223 表示稳定性风险，缺失率=0.00%。"
+      }
+    },
+    "FEAT_ACCOUNT_BEHAVIOR_RATIO_ACCOUNT_LOGIN_LOG_7D_QUANTILE_BIN_01": {
+      "feature_id": "FEAT_ACCOUNT_BEHAVIOR_RATIO_ACCOUNT_LOGIN_LOG_7D_QUANTILE_BIN_01",
+      "direction": "account_behavior",
+      "definition": {
+        "source_table": "account_login_log",
+        "time_window": "7d",
+        "filter": "status = 'success' AND amount > 0",
+        "aggregation": "RATIO",
+        "transformation": "QUANTILE_BIN"
+      },
+      "business_logic": "计算高风险交易占比",
+      "compliance_tags": [
+        "PII_FREE",
+        "EXPLAINABLE"
+      ],
+      "metadata": {
+        "feature_id": "FEAT_ACCOUNT_BEHAVIOR_RATIO_ACCOUNT_LOGIN_LOG_7D_QUANTILE_BIN_01",
+        "direction": "account_behavior",
+        "template_family": "cross_feature",
+        "transform_strategy": "quantile_bin",
+        "business_logic": "计算高风险交易占比",
+        "definition": {
+          "source_table": "account_login_log",
+          "time_window": "7d",
+          "filter": "status = 'success' AND amount > 0",
+          "aggregation": "RATIO",
+          "transformation": "QUANTILE_BIN"
+        },
+        "resolved_column": "FLOORSMIN_MEDI",
+        "metrics": {
+          "IV": 0.016763,
+          "KS": 0.034279,
+          "KS_gain": 0.0,
+          "PSI": 1.620671,
+          "missing_rate": 0.0,
+          "status": "success",
+          "reason": null
+        },
+        "effectiveness": "通过阈值筛选；IV=0.0168 表示区分度，KS=0.0343 表示正负样本分离度，PSI=1.6207 表示稳定性风险，缺失率=0.00%。"
+      }
+    },
+    "FEAT_ACCOUNT_BEHAVIOR_AVG_ACCOUNT_LOGIN_LOG_7D_QUANTILE_BIN_02": {
+      "feature_id": "FEAT_ACCOUNT_BEHAVIOR_AVG_ACCOUNT_LOGIN_LOG_7D_QUANTILE_BIN_02",
+      "direction": "account_behavior",
+      "definition": {
+        "source_table": "account_login_log",
+        "time_window": "7d",
+        "filter": "status = 'success' AND amount > 0",
+        "aggregation": "AVG",
+        "transformation": "QUANTILE_BIN"
+      },
+      "business_logic": "计算平均交易金额",
+      "compliance_tags": [
+        "PII_FREE",
+        "EXPLAINABLE"
+      ],
+      "metadata": {
+        "feature_id": "FEAT_ACCOUNT_BEHAVIOR_AVG_ACCOUNT_LOGIN_LOG_7D_QUANTILE_BIN_02",
+        "direction": "account_behavior",
+        "template_family": "cross_feature",
+        "transform_strategy": "quantile_bin",
+        "business_logic": "计算平均交易金额",
+        "definition": {
+          "source_table": "account_login_log",
+          "time_window": "7d",
+          "filter": "status = 'success' AND amount > 0",
+          "aggregation": "AVG",
+          "transformation": "QUANTILE_BIN"
+        },
+        "resolved_column": "YEARS_BEGINEXPLUATATION_MEDI",
+        "metrics": {
+          "IV": 0.031148,
+          "KS": 0.057905,
+          "KS_gain": 0.0,
+          "PSI": 0.739655,
+          "missing_rate": 0.0,
+          "status": "success",
+          "reason": null
+        },
+        "effectiveness": "通过阈值筛选；IV=0.0311 表示区分度，KS=0.0579 表示正负样本分离度，PSI=0.7397 表示稳定性风险，缺失率=0.00%。"
+      }
+    },
+    "FEAT_ACCOUNT_BEHAVIOR_SUM_ACCOUNT_LOGIN_LOG_7D_QUANTILE_BIN_03": {
+      "feature_id": "FEAT_ACCOUNT_BEHAVIOR_SUM_ACCOUNT_LOGIN_LOG_7D_QUANTILE_BIN_03",
+      "direction": "account_behavior",
+      "definition": {
+        "source_table": "account_login_log",
+        "time_window": "7d",
+        "filter": "status = 'success' AND amount > 0",
+        "aggregation": "SUM",
+        "transformation": "QUANTILE_BIN"
+      },
+      "business_logic": "汇总交易金额总量",
+      "compliance_tags": [
+        "PII_FREE",
+        "EXPLAINABLE"
+      ],
+      "metadata": {
+        "feature_id": "FEAT_ACCOUNT_BEHAVIOR_SUM_ACCOUNT_LOGIN_LOG_7D_QUANTILE_BIN_03",
+        "direction": "account_behavior",
+        "template_family": "cross_feature",
+        "transform_strategy": "quantile_bin",
+        "business_logic": "汇总交易金额总量",
+        "definition": {
+          "source_table": "account_login_log",
+          "time_window": "7d",
+          "filter": "status = 'success' AND amount > 0",
+          "aggregation": "SUM",
+          "transformation": "QUANTILE_BIN"
+        },
+        "resolved_column": "NAME_INCOME_TYPE",
+        "metrics": {
+          "IV": 0.053732,
+          "KS": 0.105223,
+          "KS_gain": 0.0,
+          "PSI": 0.138326,
+          "missing_rate": 0.0,
+          "status": "success",
+          "reason": null
+        },
+        "effectiveness": "通过阈值筛选；IV=0.0537 表示区分度，KS=0.1052 表示正负样本分离度，PSI=0.1383 表示稳定性风险，缺失率=0.00%。"
+      }
+    },
+    "FEAT_NETWORK_RELATION_REL_WEIGHT_STD_7D_001": {
+      "feature_id": "FEAT_NETWORK_RELATION_REL_WEIGHT_STD_7D_001",
+      "direction": "network_relation",
+      "definition": {
+        "source_table": "social_graph",
+        "time_window": "7d",
+        "filter": "src_user IS NOT NULL AND weight IS NOT NULL",
+        "aggregation": "STDDEV",
+        "transformation": "RAW"
+      },
+      "business_logic": "用户过去7天社交关系权重的标准差，衡量关系强度波动性，值越高表示关系质量参差不齐。",
+      "compliance_tags": [
+        "PII_FREE",
+        "EXPLAINABLE"
+      ],
+      "metadata": {
+        "feature_id": "FEAT_NETWORK_RELATION_REL_WEIGHT_STD_7D_001",
+        "direction": "network_relation",
+        "template_family": "anomaly_distance",
+        "transform_strategy": "missing_indicator",
+        "business_logic": "用户过去7天社交关系权重的标准差，衡量关系强度波动性，值越高表示关系质量参差不齐。",
+        "definition": {
+          "source_table": "social_graph",
+          "time_window": "7d",
+          "filter": "src_user IS NOT NULL AND weight IS NOT NULL",
+          "aggregation": "STDDEV",
+          "transformation": "RAW"
+        },
+        "resolved_column": "DEF_30_CNT_SOCIAL_CIRCLE",
+        "metrics": {
+          "IV": 0.009919,
+          "KS": 0.033151,
+          "KS_gain": 0.0,
+          "PSI": 0.793146,
+          "missing_rate": 0.0,
+          "status": "success",
+          "reason": null
+        },
+        "effectiveness": "通过阈值筛选；IV=0.0099 表示区分度，KS=0.0332 表示正负样本分离度，PSI=0.7931 表示稳定性风险，缺失率=0.00%。"
+      }
+    },
+    "FEAT_NETWORK_RELATION_SOCIAL_COUNT_MISSING_7D_002": {
+      "feature_id": "FEAT_NETWORK_RELATION_SOCIAL_COUNT_MISSING_7D_002",
+      "direction": "network_relation",
+      "definition": {
+        "source_table": "social_graph",
+        "time_window": "7d",
+        "filter": "src_user IS NOT NULL",
+        "aggregation": "COUNT",
+        "transformation": "RAW"
+      },
+      "business_logic": "用户过去7天社交关系记录数量，若为0则表示缺失社交关系，作为缺失指示器。",
+      "compliance_tags": [
+        "PII_FREE",
+        "EXPLAINABLE"
+      ],
+      "metadata": {
+        "feature_id": "FEAT_NETWORK_RELATION_SOCIAL_COUNT_MISSING_7D_002",
+        "direction": "network_relation",
+        "template_family": "anomaly_distance",
+        "transform_strategy": "missing_indicator",
+        "business_logic": "用户过去7天社交关系记录数量，若为0则表示缺失社交关系，作为缺失指示器。",
+        "definition": {
+          "source_table": "social_graph",
+          "time_window": "7d",
+          "filter": "src_user IS NOT NULL",
+          "aggregation": "COUNT",
+          "transformation": "RAW"
+        },
+        "resolved_column": "LIVINGAPARTMENTS_MODE",
+        "metrics": {
+          "IV": 0.011238,
+          "KS": 0.023408,
+          "KS_gain": 0.0,
+          "PSI": 1.092649,
+          "missing_rate": 0.0,
+          "status": "success",
+          "reason": null
+        },
+        "effectiveness": "通过阈值筛选；IV=0.0112 表示区分度，KS=0.0234 表示正负样本分离度，PSI=1.0926 表示稳定性风险，缺失率=0.00%。"
+      }
+    },
+    "FEAT_NETWORK_RELATION_WEIGHT_AVG_7D_003": {
+      "feature_id": "FEAT_NETWORK_RELATION_WEIGHT_AVG_7D_003",
+      "direction": "network_relation",
+      "definition": {
+        "source_table": "social_graph",
+        "time_window": "7d",
+        "filter": "src_user IS NOT NULL AND weight IS NOT NULL",
+        "aggregation": "AVG",
+        "transformation": "STANDARDIZE"
+      },
+      "business_logic": "用户过去7天社交关系权重的平均值，经标准化处理后衡量用户社交亲密度的相对水平。",
+      "compliance_tags": [
+        "PII_FREE",
+        "EXPLAINABLE"
+      ],
+      "metadata": {
+        "feature_id": "FEAT_NETWORK_RELATION_WEIGHT_AVG_7D_003",
+        "direction": "network_relation",
+        "template_family": "anomaly_distance",
+        "transform_strategy": "missing_indicator",
+        "business_logic": "用户过去7天社交关系权重的平均值，经标准化处理后衡量用户社交亲密度的相对水平。",
+        "definition": {
+          "source_table": "social_graph",
+          "time_window": "7d",
+          "filter": "src_user IS NOT NULL AND weight IS NOT NULL",
+          "aggregation": "AVG",
+          "transformation": "STANDARDIZE"
+        },
+        "resolved_column": "EXT_SOURCE_3",
+        "metrics": {
+          "IV": 0.308718,
+          "KS": 0.204139,
+          "KS_gain": 0.0,
+          "PSI": 0.062905,
+          "missing_rate": 0.0,
+          "status": "success",
+          "reason": null
+        },
+        "effectiveness": "通过阈值筛选；IV=0.3087 表示区分度，KS=0.2041 表示正负样本分离度，PSI=0.0629 表示稳定性风险，缺失率=0.00%。"
+      }
+    },
+    "FEAT_NETWORK_RELATION_TRANSFER_COUNT_LOG_7D_001": {
+      "feature_id": "FEAT_NETWORK_RELATION_TRANSFER_COUNT_LOG_7D_001",
+      "direction": "network_relation",
+      "definition": {
+        "source_table": "transfer_network",
+        "time_window": "7d",
+        "filter": "amount > 0",
+        "aggregation": "COUNT",
+        "transformation": "LOG"
+      },
+      "business_logic": "近7天转账次数对数，反映转账活跃度",
+      "compliance_tags": [
+        "PII_FREE",
+        "EXPLAINABLE"
+      ],
+      "metadata": {
+        "feature_id": "FEAT_NETWORK_RELATION_TRANSFER_COUNT_LOG_7D_001",
+        "direction": "network_relation",
+        "template_family": "stability_shift",
+        "transform_strategy": "interaction",
+        "business_logic": "近7天转账次数对数，反映转账活跃度",
+        "definition": {
+          "source_table": "transfer_network",
+          "time_window": "7d",
+          "filter": "amount > 0",
+          "aggregation": "COUNT",
+          "transformation": "LOG"
+        },
+        "resolved_column": "EXT_SOURCE_2",
+        "metrics": {
+          "IV": 0.303775,
+          "KS": 0.216944,
+          "KS_gain": 0.0,
+          "PSI": 2.1e-05,
+          "missing_rate": 0.0,
+          "status": "success",
+          "reason": null
+        },
+        "effectiveness": "通过阈值筛选；IV=0.3038 表示区分度，KS=0.2169 表示正负样本分离度，PSI=0.0000 表示稳定性风险，缺失率=0.00%。"
+      }
+    },
+    "FEAT_NETWORK_RELATION_UNIQUE_CONTACTS_LOG_30D_002": {
+      "feature_id": "FEAT_NETWORK_RELATION_UNIQUE_CONTACTS_LOG_30D_002",
+      "direction": "network_relation",
+      "definition": {
+        "source_table": "social_graph",
+        "time_window": "30d",
+        "filter": "relation_type = 'friend'",
+        "aggregation": "COUNT_DISTINCT",
+        "aggregation_field": "dst_user",
+        "transformation": "LOG"
+      },
+      "business_logic": "近30天唯一好友数量对数，反映社交圈大小",
+      "compliance_tags": [
+        "PII_FREE",
+        "EXPLAINABLE"
+      ],
+      "metadata": {
+        "feature_id": "FEAT_NETWORK_RELATION_UNIQUE_CONTACTS_LOG_30D_002",
+        "direction": "network_relation",
+        "template_family": "stability_shift",
+        "transform_strategy": "interaction",
+        "business_logic": "近30天唯一好友数量对数，反映社交圈大小",
+        "definition": {
+          "source_table": "social_graph",
+          "time_window": "30d",
+          "filter": "relation_type = 'friend'",
+          "aggregation": "COUNT_DISTINCT",
+          "aggregation_field": "dst_user",
+          "transformation": "LOG"
+        },
+        "resolved_column": "COMMONAREA_AVG",
+        "metrics": {
+          "IV": 0.011538,
+          "KS": 0.027556,
+          "KS_gain": 0.0,
+          "PSI": 1.15166,
+          "missing_rate": 0.0,
+          "status": "success",
+          "reason": null
+        },
+        "effectiveness": "通过阈值筛选；IV=0.0115 表示区分度，KS=0.0276 表示正负样本分离度，PSI=1.1517 表示稳定性风险，缺失率=0.00%。"
+      }
+    },
+    "FEAT_NETWORK_RELATION_MAX_AMOUNT_QUANTILE_1D_003": {
+      "feature_id": "FEAT_NETWORK_RELATION_MAX_AMOUNT_QUANTILE_1D_003",
+      "direction": "network_relation",
+      "definition": {
+        "source_table": "transfer_network",
+        "time_window": "1d",
+        "filter": "amount > 0",
+        "aggregation": "MAX",
+        "aggregation_field": "amount",
+        "transformation": "QUANTILE_BIN"
+      },
+      "business_logic": "近1天最大转账金额的分箱，刻画大额转账风险",
+      "compliance_tags": [
+        "PII_FREE",
+        "EXPLAINABLE"
+      ],
+      "metadata": {
+        "feature_id": "FEAT_NETWORK_RELATION_MAX_AMOUNT_QUANTILE_1D_003",
+        "direction": "network_relation",
+        "template_family": "stability_shift",
+        "transform_strategy": "interaction",
+        "business_logic": "近1天最大转账金额的分箱，刻画大额转账风险",
+        "definition": {
+          "source_table": "transfer_network",
+          "time_window": "1d",
+          "filter": "amount > 0",
+          "aggregation": "MAX",
+          "aggregation_field": "amount",
+          "transformation": "QUANTILE_BIN"
+        },
+        "resolved_column": "NONLIVINGAREA_AVG",
+        "metrics": {
+          "IV": 0.029151,
+          "KS": 0.045367,
+          "KS_gain": 0.0,
+          "PSI": 0.900197,
+          "missing_rate": 0.0,
+          "status": "success",
+          "reason": null
+        },
+        "effectiveness": "通过阈值筛选；IV=0.0292 表示区分度，KS=0.0454 表示正负样本分离度，PSI=0.9002 表示稳定性风险，缺失率=0.00%。"
+      }
+    },
+    "FEAT_GEO_LATITUDE_VOLATILITY_3H_002": {
+      "feature_id": "FEAT_GEO_LATITUDE_VOLATILITY_3H_002",
+      "direction": "geolocation_anomaly",
+      "definition": {
+        "source_table": "gps_track",
+        "time_window": "3h",
+        "filter": "latitude IS NOT NULL",
+        "aggregation": "STDDEV",
+        "transformation": "LOG"
+      },
+      "business_logic": "用户3小时内纬度的标准差，反映短时间内位置波动幅度，高波动可能为异常移动。",
+      "compliance_tags": [
+        "PII_FREE",
+        "EXPLAINABLE"
+      ],
+      "metadata": {
+        "feature_id": "FEAT_GEO_LATITUDE_VOLATILITY_3H_002",
+        "direction": "geolocation_anomaly",
+        "template_family": "stability_shift",
+        "transform_strategy": "interaction",
+        "business_logic": "用户3小时内纬度的标准差，反映短时间内位置波动幅度，高波动可能为异常移动。",
+        "definition": {
+          "source_table": "gps_track",
+          "time_window": "3h",
+          "filter": "latitude IS NOT NULL",
+          "aggregation": "STDDEV",
+          "transformation": "LOG"
+        },
+        "resolved_column": "LIVE_CITY_NOT_WORK_CITY",
+        "metrics": {
+          "IV": 0.014988,
+          "KS": 0.048758,
+          "KS_gain": 0.0,
+          "PSI": 0.491453,
+          "missing_rate": 0.0,
+          "status": "success",
+          "reason": null
+        },
+        "effectiveness": "通过阈值筛选；IV=0.0150 表示区分度，KS=0.0488 表示正负样本分离度，PSI=0.4915 表示稳定性风险，缺失率=0.00%。"
+      }
+    },
+    "FEAT_GEO_IP_COUNTRY_DIVERSITY_7D_003": {
+      "feature_id": "FEAT_GEO_IP_COUNTRY_DIVERSITY_7D_003",
+      "direction": "geolocation_anomaly",
+      "definition": {
+        "source_table": "ip_location_log",
+        "time_window": "7d",
+        "filter": "ip IS NOT NULL",
+        "aggregation": "COUNT_DISTINCT",
+        "transformation": "QUANTILE_BIN"
+      },
+      "business_logic": "用户一周内IP登录涉及的不同国家数量，多国登录可能暗示账号被盗或异常跨区使用。",
+      "compliance_tags": [
+        "PII_FREE",
+        "EXPLAINABLE"
+      ],
+      "metadata": {
+        "feature_id": "FEAT_GEO_IP_COUNTRY_DIVERSITY_7D_003",
+        "direction": "geolocation_anomaly",
+        "template_family": "stability_shift",
+        "transform_strategy": "interaction",
+        "business_logic": "用户一周内IP登录涉及的不同国家数量，多国登录可能暗示账号被盗或异常跨区使用。",
+        "definition": {
+          "source_table": "ip_location_log",
+          "time_window": "7d",
+          "filter": "ip IS NOT NULL",
+          "aggregation": "COUNT_DISTINCT",
+          "transformation": "QUANTILE_BIN"
+        },
+        "resolved_column": "REGION_POPULATION_RELATIVE",
+        "metrics": {
+          "IV": 0.036563,
+          "KS": 0.065177,
+          "KS_gain": 0.0,
+          "PSI": 0.013833,
+          "missing_rate": 0.0,
+          "status": "success",
+          "reason": null
+        },
+        "effectiveness": "通过阈值筛选；IV=0.0366 表示区分度，KS=0.0652 表示正负样本分离度，PSI=0.0138 表示稳定性风险，缺失率=0.00%。"
+      }
+    },
+    "FEAT_ACCOUNT_BEHAVIOR_MAX_ACCOUNT_LOGIN_LOG_7D_BIN_01": {
+      "feature_id": "FEAT_ACCOUNT_BEHAVIOR_MAX_ACCOUNT_LOGIN_LOG_7D_BIN_01",
+      "direction": "account_behavior",
+      "definition": {
+        "source_table": "account_login_log",
+        "time_window": "7d",
+        "filter": "status = 'success' AND amount > 0",
+        "aggregation": "MAX",
+        "transformation": "BIN"
+      },
+      "business_logic": "提取单笔最大交易金额",
+      "compliance_tags": [
+        "PII_FREE",
+        "EXPLAINABLE"
+      ],
+      "metadata": {
+        "feature_id": "FEAT_ACCOUNT_BEHAVIOR_MAX_ACCOUNT_LOGIN_LOG_7D_BIN_01",
+        "direction": "account_behavior",
+        "template_family": "anomaly_distance",
+        "transform_strategy": "missing_indicator",
+        "business_logic": "提取单笔最大交易金额",
+        "definition": {
+          "source_table": "account_login_log",
+          "time_window": "7d",
+          "filter": "status = 'success' AND amount > 0",
+          "aggregation": "MAX",
+          "transformation": "BIN"
+        },
+        "resolved_column": "COMMONAREA_MEDI",
+        "metrics": {
+          "IV": 0.010821,
+          "KS": 0.026516,
+          "KS_gain": 0.0,
+          "PSI": 1.151964,
+          "missing_rate": 0.0,
+          "status": "success",
+          "reason": null
+        },
+        "effectiveness": "通过阈值筛选；IV=0.0108 表示区分度，KS=0.0265 表示正负样本分离度，PSI=1.1520 表示稳定性风险，缺失率=0.00%。"
+      }
+    },
+    "FEAT_ACCOUNT_BEHAVIOR_STDDEV_ACCOUNT_LOGIN_LOG_7D_BIN_02": {
+      "feature_id": "FEAT_ACCOUNT_BEHAVIOR_STDDEV_ACCOUNT_LOGIN_LOG_7D_BIN_02",
+      "direction": "account_behavior",
+      "definition": {
+        "source_table": "account_login_log",
+        "time_window": "7d",
+        "filter": "status = 'success' AND amount > 0",
+        "aggregation": "STDDEV",
+        "transformation": "BIN"
+      },
+      "business_logic": "计算交易金额波动性",
+      "compliance_tags": [
+        "PII_FREE",
+        "EXPLAINABLE"
+      ],
+      "metadata": {
+        "feature_id": "FEAT_ACCOUNT_BEHAVIOR_STDDEV_ACCOUNT_LOGIN_LOG_7D_BIN_02",
+        "direction": "account_behavior",
+        "template_family": "anomaly_distance",
+        "transform_strategy": "missing_indicator",
+        "business_logic": "计算交易金额波动性",
+        "definition": {
+          "source_table": "account_login_log",
+          "time_window": "7d",
+          "filter": "status = 'success' AND amount > 0",
+          "aggregation": "STDDEV",
+          "transformation": "BIN"
+        },
+        "resolved_column": "DAYS_EMPLOYED",
+        "metrics": {
+          "IV": 0.101156,
+          "KS": 0.084791,
+          "KS_gain": 0.0,
+          "PSI": 0.165424,
+          "missing_rate": 0.0,
+          "status": "success",
+          "reason": null
+        },
+        "effectiveness": "通过阈值筛选；IV=0.1012 表示区分度，KS=0.0848 表示正负样本分离度，PSI=0.1654 表示稳定性风险，缺失率=0.00%。"
+      }
+    }
+  },
+  "direction_index": {
+    "transaction_pattern": [
+      "FEAT_TRANSACTION_PATTERN_MERCHANT_RATIO_30D_002"
+    ],
+    "geolocation_anomaly": [
+      "FEAT_GEO_ANOM_GPS_STDDEV_1H_001",
+      "FEAT_GEO_ANOM_IP_COUNT_6H_002",
+      "FEAT_GEO_ANOM_CITY_CHANGE_24H_003",
+      "FEAT_GEO_LATITUDE_VOLATILITY_3H_002",
+      "FEAT_GEO_IP_COUNTRY_DIVERSITY_7D_003"
+    ],
+    "account_behavior": [
+      "FEAT_ACCOUNT_BEHAVIOR_RATIO_ACCOUNT_LOGIN_LOG_7D_QUANTILE_BIN_01",
+      "FEAT_ACCOUNT_BEHAVIOR_AVG_ACCOUNT_LOGIN_LOG_7D_QUANTILE_BIN_02",
+      "FEAT_ACCOUNT_BEHAVIOR_SUM_ACCOUNT_LOGIN_LOG_7D_QUANTILE_BIN_03",
+      "FEAT_ACCOUNT_BEHAVIOR_MAX_ACCOUNT_LOGIN_LOG_7D_BIN_01",
+      "FEAT_ACCOUNT_BEHAVIOR_STDDEV_ACCOUNT_LOGIN_LOG_7D_BIN_02"
+    ],
+    "network_relation": [
+      "FEAT_NETWORK_RELATION_REL_WEIGHT_STD_7D_001",
+      "FEAT_NETWORK_RELATION_SOCIAL_COUNT_MISSING_7D_002",
+      "FEAT_NETWORK_RELATION_WEIGHT_AVG_7D_003",
+      "FEAT_NETWORK_RELATION_TRANSFER_COUNT_LOG_7D_001",
+      "FEAT_NETWORK_RELATION_UNIQUE_CONTACTS_LOG_30D_002",
+      "FEAT_NETWORK_RELATION_MAX_AMOUNT_QUANTILE_1D_003"
+    ]
+  },
+  "saved_at": "2026-05-25T19:14:39.885479"
+}
