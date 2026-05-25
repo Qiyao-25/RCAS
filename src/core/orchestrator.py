@@ -147,6 +147,7 @@ class Orchestrator:
                 logger.warning("预算耗尽，退出循环")
                 break
             self.budget.consume(gen_cost)
+            self.budget.record_llm_call()
             step_log["budget_consumed"] += gen_cost
             feature_memory = (
                 self.feature_kb.top_features(
@@ -203,6 +204,7 @@ class Orchestrator:
 
             # ─── 4. Evaluator 评估 ───
             results = self.evaluator.evaluate(valid_dsls)
+            self.budget.record_features_evaluated(len(results))
             if self.trace:
                 for dsl, result in zip(valid_dsls, results):
                     self.trace.record_evaluation(
@@ -236,6 +238,7 @@ class Orchestrator:
                 ]
                 if low_perf_dsls:
                     self.budget.consume(critic_cost)
+                    self.budget.record_llm_call()
                     step_log["budget_consumed"] += critic_cost
                     critiques = self.critic.critique(low_perf_dsls)
                     self.critic_history.extend(critiques)

@@ -86,6 +86,18 @@ knowledge/feature_bank.json
 
 `knowledge/feature_bank.json` 是本地运行资产，默认不提交到 Git。
 
+知识库使用有界记忆策略：
+
+- `FEATURE_BANK_MAX_FEATURES=200`：最多保留 200 个优秀因子。
+- `FEATURE_BANK_MAX_PER_DIRECTION=40`：单个方向最多保留 40 个。
+- `FEATURE_BANK_MAX_PER_STRATEGY=20`：单个模板/变换组合最多保留 20 个。
+
+保留顺序由质量分数决定：
+
+```text
+score = IV + KS - 0.5 * PSI - 0.2 * missing_rate
+```
+
 ## Configuration
 
 主配置文件：
@@ -107,11 +119,20 @@ LLM_ALLOW_MOCK_FALLBACK=false
 DATA_SOURCE=home_credit
 HOME_CREDIT_DIR=
 
-BUDGET_DAILY_LIMIT=50
-BUDGET_MAX_STEPS=20
+BUDGET_DAILY_LIMIT=30
+BUDGET_MAX_STEPS=8
+BUDGET_MAX_RUNTIME_SECONDS=1800
+BUDGET_MAX_LLM_CALLS=16
+BUDGET_MAX_FEATURES_EVALUATED=60
 GENERATOR_K_FEATURES_PER_STEP=3
 
+DATA_MAX_ROWS=80000
+EVAL_SAMPLE_ROWS=50000
+
 FEATURE_BANK_PATH=knowledge/feature_bank.json
+FEATURE_BANK_MAX_FEATURES=200
+FEATURE_BANK_MAX_PER_DIRECTION=40
+FEATURE_BANK_MAX_PER_STRATEGY=20
 RUN_BASE_DIR=runs
 TRACE_ENABLED=true
 ```
@@ -123,6 +144,33 @@ TRACE_ENABLED=true
 3. `configs/base.env`
 
 密钥建议放在系统环境变量中，不写入配置文件。
+
+## Runtime Control
+
+默认运行配置面向较快迭代：
+
+- `DATA_MAX_ROWS=80000`：Home Credit 默认最多读取 8 万行。
+- `EVAL_SAMPLE_ROWS=50000`：评估指标默认抽样 5 万行计算。
+- `BUDGET_MAX_STEPS=8`：最多探索 8 步。
+- `BUDGET_MAX_RUNTIME_SECONDS=1800`：最多运行 30 分钟。
+- `BUDGET_MAX_LLM_CALLS=16`：最多 16 次 LLM 调用。
+- `BUDGET_MAX_FEATURES_EVALUATED=60`：最多评估 60 个候选特征。
+
+如需全量数据，将行数限制设为 0：
+
+```env
+DATA_MAX_ROWS=0
+EVAL_SAMPLE_ROWS=0
+```
+
+DeepSeek 调用默认使用：
+
+```env
+LLM_TIMEOUT=120
+LLM_MAX_RETRIES=2
+```
+
+这样可以减少短 timeout 带来的频繁 retry，同时避免一次失败拖太久。
 
 ## Data Source
 

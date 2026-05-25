@@ -64,6 +64,7 @@ class Evaluator:
         self.config = config or {}
         self._metrics_config = self._build_metrics_config()
         self._rng = random.Random(42)
+        self.eval_sample_rows = self.config.get("evaluator", {}).get("sample_rows", 0)
         # 缓存已赋值的列映射 (feature_id -> 实际数据列名)
         self._col_assignments: dict[str, str] = {}
         # 外部方向映射 (用于 Home Credit 等真实数据模式)
@@ -93,8 +94,9 @@ class Evaluator:
                 continue
 
             try:
+                eval_data = self._sample_eval_data()
                 metrics = evaluate_feature_metrics(
-                    feature_data=self.data,
+                    feature_data=eval_data,
                     feature_col=feature_col,
                     label_col=self.label_col,
                     config=self._metrics_config,
@@ -124,6 +126,14 @@ class Evaluator:
                 ))
 
         return results
+
+    def _sample_eval_data(self) -> pd.DataFrame:
+        if not self.eval_sample_rows or len(self.data) <= self.eval_sample_rows:
+            return self.data
+        return self.data.sample(
+            n=self.eval_sample_rows,
+            random_state=42,
+        )
 
     def resolved_column_for(self, feature_id: str) -> str | None:
         """Return the data column used for a generated feature, if assigned."""

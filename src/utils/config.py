@@ -29,9 +29,16 @@ def load_config(config_path: str | Path) -> dict[str, Any]:
     return {
         "budget": {
             "daily_limit": _as_int(get("BUDGET_DAILY_LIMIT", "50")),
-            "max_steps": _as_int(get("BUDGET_MAX_STEPS", "20")),
+            "max_steps": _as_int(get("BUDGET_MAX_STEPS", "8")),
             "generator_cost": _as_int(get("BUDGET_GENERATOR_COST", "1")),
             "critic_cost": _as_int(get("BUDGET_CRITIC_COST", "1")),
+            "max_runtime_seconds": _as_int(
+                get("BUDGET_MAX_RUNTIME_SECONDS", "1800")
+            ),
+            "max_llm_calls": _as_int(get("BUDGET_MAX_LLM_CALLS", "16")),
+            "max_features_evaluated": _as_int(
+                get("BUDGET_MAX_FEATURES_EVALUATED", "60")
+            ),
         },
         "ucb": {
             "c": _as_float(get("UCB_C", "1.5")),
@@ -46,6 +53,7 @@ def load_config(config_path: str | Path) -> dict[str, Any]:
             ),
             "psi_threshold": _as_float(get("EVAL_PSI_THRESHOLD", "0.25")),
             "n_bins": _as_int(get("EVAL_N_BINS", "10")),
+            "sample_rows": _as_int(get("EVAL_SAMPLE_ROWS", "50000")),
         },
         "generator": {
             "k_features_per_step": _as_int(get("GENERATOR_K_FEATURES_PER_STEP", "3")),
@@ -70,8 +78,8 @@ def load_config(config_path: str | Path) -> dict[str, Any]:
                     os.environ.get("OPENAI_API_KEY", ""),
                 ),
                 "model": get("LLM_MODEL", "deepseek-chat"),
-                "timeout": _as_int(get("LLM_TIMEOUT", "60")),
-                "max_retries": _as_int(get("LLM_MAX_RETRIES", "3")),
+                "timeout": _as_int(get("LLM_TIMEOUT", "120")),
+                "max_retries": _as_int(get("LLM_MAX_RETRIES", "2")),
                 "allow_mock_fallback": _as_bool(
                     get("LLM_ALLOW_MOCK_FALLBACK", "false")
                 ),
@@ -84,6 +92,7 @@ def load_config(config_path: str | Path) -> dict[str, Any]:
         "data": {
             "source": get("DATA_SOURCE", "home_credit"),
             "home_credit_dir": get("HOME_CREDIT_DIR", ""),
+            "max_rows": _as_int(get("DATA_MAX_ROWS", "80000")),
         },
         "run": {
             "base_dir": get("RUN_BASE_DIR", "runs"),
@@ -106,6 +115,13 @@ def load_config(config_path: str | Path) -> dict[str, Any]:
         "knowledge": {
             "feature_bank_path": get(
                 "FEATURE_BANK_PATH", "knowledge/feature_bank.json"
+            ),
+            "max_features": _as_int(get("FEATURE_BANK_MAX_FEATURES", "200")),
+            "max_per_direction": _as_int(
+                get("FEATURE_BANK_MAX_PER_DIRECTION", "40")
+            ),
+            "max_per_strategy": _as_int(
+                get("FEATURE_BANK_MAX_PER_STRATEGY", "20")
             ),
         },
         "trace": {

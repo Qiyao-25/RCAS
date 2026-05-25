@@ -147,6 +147,7 @@ def load_home_credit_data(
     logger.info(f"缺失值填充: {len(num_cols)} 数值列 (中位数)")
 
     # ─── 5. 添加标签列 ───
+    df = df.copy()
     df["label"] = label.values
 
     # ─── 6. 构建方向映射 ───

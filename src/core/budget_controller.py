@@ -14,6 +14,7 @@ I/O 契约：
 from __future__ import annotations
 
 import logging
+import time
 
 from src.utils.schemas import EvalResult
 
@@ -33,6 +34,9 @@ class BudgetController:
         critic_cost: int = 1,
         iv_threshold: float = 0.005,
         missing_rate_threshold: float = 0.7,
+        max_runtime_seconds: int = 1800,
+        max_llm_calls: int = 20,
+        max_features_evaluated: int = 80,
     ):
         """
         Args:
@@ -47,8 +51,14 @@ class BudgetController:
         self.critic_cost = critic_cost
         self.iv_threshold = iv_threshold
         self.missing_rate_threshold = missing_rate_threshold
+        self.max_runtime_seconds = max_runtime_seconds
+        self.max_llm_calls = max_llm_calls
+        self.max_features_evaluated = max_features_evaluated
         self.remaining = daily_limit
         self.total_consumed = 0
+        self.started_at = time.monotonic()
+        self.llm_calls = 0
+        self.features_evaluated = 0
 
     def can_generate(self) -> tuple[bool, int]:
         """
@@ -57,7 +67,10 @@ class BudgetController:
         Returns:
             (can_proceed: bool, cost: int)
         """
-        if self.remaining >= self.generator_cost:
+        if self._resource_exhausted():
+            logger.warning(f"资源预算已耗尽: {self.exhaustion_reason()}")
+            return False, 0
+        if self.remaining >= self.generator_cost and self.llm_calls < self.max_llm_calls:
             return True, self.generator_cost
         logger.warning("预算不足，无法调用 Generator")
         return False, 0
@@ -91,7 +104,10 @@ class BudgetController:
         if not low_perf:
             return False, 0, []
 
-        if self.remaining >= self.critic_cost:
+        if self._resource_exhausted():
+            return False, 0, []
+
+        if self.remaining >= self.critic_cost and self.llm_calls < self.max_llm_calls:
             return True, self.critic_cost, low_perf
 
         logger.warning("预算不足，无法调用 Critic (需要修复低效特征)")
@@ -116,9 +132,36 @@ class BudgetController:
         )
         return True
 
+    def record_llm_call(self, count: int = 1) -> None:
+        self.llm_calls += count
+
+    def record_features_evaluated(self, count: int) -> None:
+        self.features_evaluated += count
+
     def is_exhausted(self) -> bool:
         """预算是否耗尽。"""
-        return self.remaining <= 0
+        return self.remaining <= 0 or self._resource_exhausted()
+
+    def elapsed_seconds(self) -> float:
+        return time.monotonic() - self.started_at
+
+    def exhaustion_reason(self) -> str:
+        if self.remaining <= 0:
+            return "unit_budget_exhausted"
+        if self.elapsed_seconds() >= self.max_runtime_seconds:
+            return "runtime_budget_exhausted"
+        if self.llm_calls >= self.max_llm_calls:
+            return "llm_call_budget_exhausted"
+        if self.features_evaluated >= self.max_features_evaluated:
+            return "evaluation_budget_exhausted"
+        return "not_exhausted"
+
+    def _resource_exhausted(self) -> bool:
+        return (
+            self.elapsed_seconds() >= self.max_runtime_seconds
+            or self.llm_calls >= self.max_llm_calls
+            or self.features_evaluated >= self.max_features_evaluated
+        )
 
     def summary(self) -> dict:
         """预算使用摘要。"""
@@ -126,5 +169,12 @@ class BudgetController:
             "daily_limit": self.daily_limit,
             "remaining": self.remaining,
             "total_consumed": self.total_consumed,
+            "elapsed_seconds": round(self.elapsed_seconds(), 2),
+            "max_runtime_seconds": self.max_runtime_seconds,
+            "llm_calls": self.llm_calls,
+            "max_llm_calls": self.max_llm_calls,
+            "features_evaluated": self.features_evaluated,
+            "max_features_evaluated": self.max_features_evaluated,
+            "exhaustion_reason": self.exhaustion_reason(),
             "exhausted": self.is_exhausted(),
         }

@@ -102,8 +102,9 @@ def load_data(config: dict) -> tuple:
 
         print(f"\n[1/6] 加载 Home Credit 数据: {hc_dir}")
         output_path = PROJECT_ROOT / "data" / "home_credit_processed.csv"
+        max_rows = data_cfg.get("max_rows", 0) or None
         df, direction_map = load_home_credit_data(
-            hc_dir, max_rows=None, output_path=output_path
+            hc_dir, max_rows=max_rows, output_path=output_path
         )
         print_data_info(df, direction_map)
         return df, direction_map
@@ -229,6 +230,9 @@ def main():
         critic_cost=budget_cfg.get("critic_cost", 1),
         iv_threshold=eval_cfg.get("iv_threshold", 0.005),
         missing_rate_threshold=eval_cfg.get("missing_rate_threshold", 0.7),
+        max_runtime_seconds=budget_cfg.get("max_runtime_seconds", 1800),
+        max_llm_calls=budget_cfg.get("max_llm_calls", 16),
+        max_features_evaluated=budget_cfg.get("max_features_evaluated", 60),
     )
 
     # State Manager
@@ -268,7 +272,12 @@ def main():
     )
     if not knowledge_path.is_absolute():
         knowledge_path = PROJECT_ROOT / knowledge_path
-    feature_kb = FeatureKnowledgeBase(storage_path=knowledge_path)
+    feature_kb = FeatureKnowledgeBase(
+        storage_path=knowledge_path,
+        max_features=config.get("knowledge", {}).get("max_features", 200),
+        max_per_direction=config.get("knowledge", {}).get("max_per_direction", 40),
+        max_per_strategy=config.get("knowledge", {}).get("max_per_strategy", 20),
+    )
     feature_kb.load()
 
     print(f"  -> UCB 方向数: {len(directions)}")
@@ -325,6 +334,13 @@ def main():
     print(f"  上限: {bsum['daily_limit']}")
     print(f"  剩余: {bsum['remaining']}")
     print(f"  消耗: {bsum['total_consumed']}")
+    print(f"  运行耗时: {bsum['elapsed_seconds']}s / {bsum['max_runtime_seconds']}s")
+    print(f"  LLM 调用: {bsum['llm_calls']} / {bsum['max_llm_calls']}")
+    print(
+        f"  评估特征: {bsum['features_evaluated']} / "
+        f"{bsum['max_features_evaluated']}"
+    )
+    print(f"  结束原因: {bsum['exhaustion_reason']}")
     if trace:
         print(f"\n追踪文件:")
         print(f"  事件流: {trace.events_path}")
